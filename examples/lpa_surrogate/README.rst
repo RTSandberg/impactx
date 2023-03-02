@@ -1,0 +1,64 @@
+.. _examples-fodo:
+
+LPA surrogate element
+=========
+
+LPA surrogate element cell ...
+
+The matched Twiss parameters at entry are:
+
+We use a 2 GeV electron beam with initial unnormalized rms emittance of 2 nm.
+
+The second moments of the particle distribution after the FODO cell should coincide with the second moments of the particle distribution before the FODO cell, to within the level expected due to noise due to statistical sampling.
+
+In this test, the initial and final values of :math:`\sigma_x`, :math:`\sigma_y`, :math:`\sigma_t`, :math:`\epsilon_x`, :math:`\epsilon_y`, and :math:`\epsilon_t` must agree with nominal values.
+
+
+Run
+---
+
+This example can be run as a Python script (``python3 run_lpa_surrogate.py``). Running app with an input file (``impactx input_fodo.in``) not yet supported.
+Each can also be prefixed with an `MPI executor <https://www.mpi-forum.org>`__, such as ``mpiexec -n 4 ...`` or ``srun -n 4 ...``, depending on the system.
+
+.. tab-set::
+
+   .. tab-item:: Python Script
+
+       .. literalinclude:: run_lpa_surrogate.py
+          :language: python3
+          :caption: You can copy this file from ``examples/lpa_surrogate/run_lpa_surrogate.py``.
+
+
+
+Analyze
+-------
+
+We run the following script to analyze correctness:
+
+.. dropdown:: Script ``analysis_fodo.py``
+
+   .. literalinclude:: analysis_fodo.py
+      :language: python3
+      :caption: You can copy this file from ``examples/lpa_surrogate/analysis_fodo.py``.
+
+
+Visualize
+---------
+
+You can run the following script to visualize the beam evolution over time:
+
+.. dropdown:: Script ``plot_fodo.py``
+
+   .. literalinclude:: plot_fodo.py
+      :language: python3
+      :caption: You can copy this file from ``examples/fodo/plot_fodo.py``.
+
+.. figure:: https://user-images.githubusercontent.com/1353258/180287840-8561f6fd-278f-4856-abd8-04fbdb78c8ff.png
+   :alt: focusing, defocusing and preserved emittane in our FODO cell benchmark.
+
+   FODO transversal beam width and emittance evolution
+
+.. figure:: https://user-images.githubusercontent.com/1353258/180287845-eb0210a7-2500-4aa9-844c-67fb094329d3.png
+   :alt: focusing, defocusing and phase space rotation in our FODO cell benchmark.
+
+   FODO transversal beam width and phase space evolution

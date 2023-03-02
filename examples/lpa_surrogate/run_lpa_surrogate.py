@@ -15,8 +15,10 @@ try:
 except ImportError:
     cupy_available = False
 
+import torch
+
 import amrex
-from impactx import Config, ImpactX, RefPart, distribution, elements, transformation
+from impactx import Config, ImpactX, RefPart, distribution, elements
 
 sim = ImpactX()
 
@@ -31,9 +33,8 @@ sim.init_grids()
 
 # load a 2 GeV electron beam with an initial
 # unnormalized rms emittance of 2 nm
-# !! want 0.5 nm
 energy_MeV = 2.0e3  # reference energy
-bunch_charge_C = 1.0e-10  # used with space charge
+bunch_charge_C = 1.0e-9  # used with space charge
 npart = 10000  # number of macro particles
 
 #   reference particle
@@ -58,10 +59,9 @@ sim.add_particles(bunch_charge_C, distr, npart)
 ns = 25
 
 
-
 # build a custom, Pythonic beam optical element
-def surrogate_plugin(pge, pti, refpart):
-    """This pushes the beam particles ... .
+def my_drift(pge, pti, refpart):
+    """This pushes the beam particles as a drift.
 
     Relative to the reference particle.
 
@@ -80,28 +80,31 @@ def surrogate_plugin(pge, pti, refpart):
 
     else:
         array = np.array
+    # access AoS data such as positions and cpu/id
+    aos = pti.aos()
+    aos_arr = array(aos, copy=False)
 
-    # load my neural net
-    
-    # apply s-to-t transform
-    # need to get particle container pc
-    coordinate_transformation(pc, impactx.TransformationDirection.to_fixed_t)
+    # access SoA data such as momentum
+    soa = pti.soa()
+    real_arrays = soa.GetRealData()
+    px = array(real_arrays[0], copy=False)
+    py = array(real_arrays[1], copy=False)
+    pt = array(real_arrays[2], copy=False)
 
-    # transform to neural net coordinates
-    # (here we assume that we come out of a drift section or otherwise don't need to modify x,y)
-    # subtract
-    # normalize to model coordinates
-    ## subtract means, divide by stds
-    # apply neural net
-    ## unnormalize
-    ## multiply by stds, add means
-    # apply t-to-s transform
-    coordinate_transformation(pc, impactx.TransformationDirection.to_fixed_s)
-    # return
+    # length of the current slice
+    slice_ds = pge.ds / pge.nslice
+
+    # access reference particle values to find beta*gamma^2
+    pt_ref = refpart.pt
+    betgam2 = pt_ref**2 - 1.0
+
+    # advance position and momentum (drift)
+    aos_arr[:]["x"] += slice_ds * px[:]
+    aos_arr[:]["y"] += slice_ds * py[:]
+    aos_arr[:]["z"] += (slice_ds / betgam2) * pt[:]
 
 
-
-def ref_surrogate(pge, refpart, reference_particle_z0):
+def my_ref_drift(pge, refpart):
     """This pushes the reference particle.
 
     :param refpart: reference particle
@@ -117,42 +120,38 @@ def ref_surrogate(pge, refpart, reference_particle_z0):
     pt = refpart.pt
     s = refpart.s
 
-    #
-    ref_x = ref_y = 0
-    ref_z = reference_particle_z0
-    ref_gamma = -refpart.pt
+    # length of the current slice
+    slice_ds = pge.ds / pge.nslice
 
-    # apply neural net
-    ## normalize
-    ## apply
-    ## unnormalizes
+    # assign intermediate parameter
+    step = slice_ds / (pt**2 - 1.0) ** 0.5
 
     # advance position and momentum (drift)
-    refpart.x = 
-    refpart.y = 
+    refpart.x = x + step * px
+    refpart.y = y + step * py
     refpart.z = z + step * pz
     refpart.t = t - step * pt
 
     # advance integrated path length
-    refpart.s = s + stage_length
+    refpart.s = s + slice_ds
 
 
 pge1 = elements.Programmable()
 pge1.nslice = ns
-pge1.beam_particles = lambda pti, refpart: surrogate_plugin(pge1, pti, refpart)
-pge1.ref_particle = lambda refpart: ref_surrogate(pge1, refpart)
+pge1.beam_particles = lambda pti, refpart: my_drift(pge1, pti, refpart)
+pge1.ref_particle = lambda refpart: my_ref_drift(pge1, refpart)
 pge1.ds = 0.25
 
 
 # design the accelerator lattice
-surrogate_lattice = [
-    pge1
-]
-# assign a fodo segment
-sim.lattice.extend(surrogate_lattice)
+# lattice = [
+#     pge1,
+# ]
+# # assign a fodo segment
+# sim.lattice.extend(lattice)
 
-# run simulation
-sim.evolve()
+# # run simulation
+# sim.evolve()
 
 # clean shutdown
 del sim
