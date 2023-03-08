@@ -16,7 +16,7 @@ except ImportError:
     cupy_available = False
 
 import amrex
-from impactx import Config, ImpactX, RefPart, distribution, elements
+from impactx import Config, ImpactX, RefPart, distribution, elements, transformation
 
 sim = ImpactX()
 
@@ -60,7 +60,7 @@ ns = 25
 
 
 # build a custom, Pythonic beam optical element
-def surrogate_plugin(pge, pti, refpart):
+def surrogate_plugin(pge, pti, refpart, reference_particle_z0):
     """This pushes the beam particles ... .
 
     Relative to the reference particle.
@@ -84,36 +84,24 @@ def surrogate_plugin(pge, pti, refpart):
     # load my neural net
     
     # apply s-to-t transform
+    # need to get particle container pc
+    coordinate_transformation(pc, impactx.TransformationDirection.to_fixed_t)
+
+    # transform to neural net coordinates
+    # (here we assume that we come out of a drift section or otherwise don't need to modify x,y)
+    # subtract
+    # normalize to model coordinates
+    ## subtract means, divide by stds
     # apply neural net
+    ## unnormalize
+    ## multiply by stds, add means
     # apply t-to-s transform
-
-    # access AoS data such as positions and cpu/id
-    aos = pti.aos()
-    aos_arr = array(aos, copy=False)
-
-    # access SoA data such as momentum
-    soa = pti.soa()
-    real_arrays = soa.GetRealData()
-    px = array(real_arrays[0], copy=False)
-    py = array(real_arrays[1], copy=False)
-    pt = array(real_arrays[2], copy=False)
-
-    # length of the current slice
-    slice_ds = pge.ds / pge.nslice
-
-    # access reference particle values to find beta*gamma^2
-    pt_ref = refpart.pt
-    betgam2 = pt_ref**2 - 1.0
-
-    # advance position and momentum (drift)
-    # aos_arr[:]["x"] += slice_ds * px[:]
-    # aos_arr[:]["y"] += slice_ds * py[:]
-    # aos_arr[:]["z"] += (slice_ds / betgam2) * pt[:]
-    # apply surrogate:
-    # ...
+    coordinate_transformation(pc, impactx.TransformationDirection.to_fixed_s)
+    # return
 
 
-def ref_surrogate(pge, refpart):
+
+def ref_surrogate(pge, refpart, reference_particle_z0):
     """This pushes the reference particle.
 
     :param refpart: reference particle
@@ -129,20 +117,24 @@ def ref_surrogate(pge, refpart):
     pt = refpart.pt
     s = refpart.s
 
-    # length of the current slice
-    slice_ds = pge.ds / pge.nslice
+    #
+    ref_x = ref_y = 0
+    ref_z = reference_particle_z0
+    ref_gamma = -refpart.pt
 
-    # assign intermediate parameter
-    step = slice_ds / (pt**2 - 1.0) ** 0.5
+    # apply neural net
+    ## normalize
+    ## apply
+    ## unnormalizes
 
     # advance position and momentum (drift)
-    refpart.x = x + step * px
-    refpart.y = y + step * py
+    refpart.x = 
+    refpart.y = 
     refpart.z = z + step * pz
     refpart.t = t - step * pt
 
     # advance integrated path length
-    refpart.s = s + slice_ds
+    refpart.s = s + stage_length
 
 
 pge1 = elements.Programmable()
