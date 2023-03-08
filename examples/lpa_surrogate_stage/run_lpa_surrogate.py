@@ -60,7 +60,7 @@ ns = 25
 
 
 # build a custom, Pythonic beam optical element
-def surrogate_plugin(pge, pti, refpart):
+def surrogate_plugin(pge, pti, refpart, reference_particle_z0):
     """This pushes the beam particles ... .
 
     Relative to the reference particle.
